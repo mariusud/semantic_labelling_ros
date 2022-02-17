@@ -84,7 +84,6 @@ class RosNode:
             except:
                 pass
         colored_pcl = [list(tup)+[self.stairs_rgb] for tup in segm_pcl]
-        print(len(segm_pcl))
         pcp = pc2.create_cloud(self.header, self.fields, colored_pcl)
         self.publish_pcl(pcp)
         end = timeit.timeit()
