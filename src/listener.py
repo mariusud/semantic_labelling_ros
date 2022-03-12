@@ -1,5 +1,4 @@
 #!/usr/bin/env python3.8
-from this import d
 import rospy
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image, PointCloud2, CameraInfo, PointField
@@ -24,7 +23,7 @@ import tf2_kdl
 from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_point
 import PyKDL
 
-class RosNode:
+class LabellingNode:
     def __init__(self):
         rospy.init_node('labelling_node')
         self.camera = PinholeCameraModel()
@@ -50,6 +49,12 @@ class RosNode:
         rospy.Subscriber("/panoptic/labels_map", Image, self.IM_callback)
         rospy.Subscriber("/panoptic2/labels_map", Image, self.IM_callback_2)
         rospy.Subscriber("/panoptic3/labels_map", Image, self.IM_callback_3)
+        rospy.Subscriber("/panoptic4/labels_map", Image, self.IM_callback_4)
+        rospy.Subscriber("/panoptic5/labels_map", Image, self.IM_callback_5)
+        rospy.Subscriber("/panoptic6/labels_map", Image, self.IM_callback_6)
+        rospy.Subscriber("/panoptic7/labels_map", Image, self.IM_callback_7)
+        rospy.Subscriber("/panoptic8/labels_map", Image, self.IM_callback_8)
+
 
         self.pub = rospy.Publisher("/colored_points", PointCloud2, queue_size=10)
         self.spin()
@@ -95,30 +100,79 @@ class RosNode:
         except CvBridgeError as error:
             print(error)
     
+    def IM_callback_4(self,data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+            self.width, self.height, channels = cv_image.shape 
+            self.last_image_4 = np.array(cv_image)
+        except CvBridgeError as error:
+            print(error)
+
+    def IM_callback_5(self,data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+            self.width, self.height, channels = cv_image.shape 
+            self.last_image_5 = np.array(cv_image)
+        except CvBridgeError as error:
+            print(error)
+    
+    def IM_callback_6(self,data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+            self.width, self.height, channels = cv_image.shape 
+            self.last_image_6 = np.array(cv_image)
+        except CvBridgeError as error:
+            print(error)
+    
+    def IM_callback_7(self,data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+            self.width, self.height, channels = cv_image.shape 
+            self.last_image_7 = np.array(cv_image)
+        except CvBridgeError as error:
+            print(error)
+    
+    def IM_callback_8(self,data):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+            self.width, self.height, channels = cv_image.shape 
+            self.last_image_8 = np.array(cv_image)
+        except CvBridgeError as error:
+            print(error)
     
     def pcl2points(self,cloud):
-        raw_cloud = pc2.read_points_list(cloud,skip_nans=True,field_names=("x", "y", "z"))
+        raw_cloud = pc2.read_points_list(cloud,skip_nans=True,field_names=("x", "y", "z", "intensity"))
+        raw_cloud = list(filter(lambda num: not math.isinf(num[0]), raw_cloud))
         try:
             self.transform_link_1 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_1/semantic_segmentation_camera_1','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
             self.transform_link_2 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_2/semantic_segmentation_camera_2','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
             self.transform_link_3 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_3/semantic_segmentation_camera_3','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
-            print("transforms, " , self.transform_link_1, self.transform_link_2, self.transform_link_3)
+            self.transform_link_4 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_4/semantic_segmentation_camera_4','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
+            self.transform_link_5 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_5/semantic_segmentation_camera_5','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
+            self.transform_link_6 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_6/semantic_segmentation_camera_6','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
+            self.transform_link_7 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_7/semantic_segmentation_camera_7','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
+            self.transform_link_8 = self.tfBuffer.lookup_transform('vehicle_blue/semantic_camera_link_8/semantic_segmentation_camera_8','vehicle_blue/semantic_camera_link_1',rospy.Time(0))
+            #print("transforms, " , self.transform_link_1, self.transform_link_2, self.transform_link_3)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("Error while receiving tf transform")
         self.pcl_colorized = []
         
-        self.pc(raw_cloud, self.transform_link_1, self.last_image, overlay=True)
+        self.pc(raw_cloud, self.transform_link_1, self.last_image)
         self.pc(raw_cloud, self.transform_link_2, self.last_image_2)
         self.pc(raw_cloud, self.transform_link_3, self.last_image_3)
-
+        self.pc(raw_cloud, self.transform_link_4, self.last_image_4)
+        self.pc(raw_cloud, self.transform_link_5, self.last_image_5)
+        self.pc(raw_cloud, self.transform_link_6, self.last_image_6)
+        self.pc(raw_cloud, self.transform_link_7, self.last_image_7)
+        self.pc(raw_cloud, self.transform_link_8, self.last_image_8)
 
         pcp = pc2.create_cloud(self.header, self.fields, self.pcl_colorized)
         self.publish_pcl(pcp)
         
     def pc(self, cloud, transform, image, overlay=False): #separate thread?
         for p in cloud:
-            if not math.isinf(p[0]) and p[0] > 0: #shortfix for the backprojection issue
-                transformed_p = tf2_kdl.transform_to_kdl(transform) * PyKDL.Vector(p[0], p[1], p[2]) # transform point based on tf transform
+            transformed_p = tf2_kdl.transform_to_kdl(transform) * PyKDL.Vector(p[0], p[1], p[2]) # transform point based on tf transform
+            if transformed_p[0] > 0:
                 projected_p = self.project_point(transformed_p)
                 try:
                     h, w= round(projected_p[0]), round(projected_p[1])
@@ -127,7 +181,7 @@ class RosNode:
                             if image[w,h][2] == self.stairs_color:
                                 self.pcl_colorized.append(list(p) + [image[w,h][0]] + [image[w,h][2]])
                             if overlay:
-                               image[w,h] = self.red
+                                image[w,h] = self.red
                 except:
                     pass
         if overlay:
@@ -138,22 +192,18 @@ class RosNode:
 
     def publish_pcl(self,pcp):
             pcp.header.stamp = rospy.Time.now()
-            rospy.loginfo("publishing points")
             self.pub.publish(pcp)
 
     def _init_pcl(self):
         self.fields = [PointField('x', 0, PointField.FLOAT32, 1),
                   PointField('y', 4, PointField.FLOAT32, 1),
                   PointField('z', 8, PointField.FLOAT32, 1),
-                  PointField('instance', 12, PointField.UINT32, 1),
-                  PointField('label', 12, PointField.UINT32, 1),
-
+                  PointField('intensity', 12, PointField.FLOAT32, 1),
+                  PointField('instance', 16, PointField.UINT32, 1),
+                  PointField('label', 20, PointField.UINT32, 1),
                   ]
-        
         self.header = Header()
         self.header.frame_id = "vehicle_blue/lidar_link/gpu_lidar" #add eventually world ?
-
-
 
     def project_point(self,point):
         x = -point[1] # -y
@@ -192,6 +242,5 @@ class RosNode:
         rospy.spin()
 
 
-
 if __name__ == '__main__':
-    RosNode()
+    LabellingNode()
