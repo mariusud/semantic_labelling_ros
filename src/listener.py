@@ -22,12 +22,14 @@ import time
 import tf2_kdl
 from tf2_geometry_msgs.tf2_geometry_msgs import do_transform_point
 import PyKDL
+import os
 
 class LabellingNode:
     def __init__(self):
         rospy.init_node('labelling_node')
         self.camera = PinholeCameraModel()
         self.bridge = CvBridge()
+        self.name_incrementer = 0
 
         self.tfBuffer = tf2_ros.Buffer()
         listener = tf2_ros.TransformListener(self.tfBuffer)
@@ -54,11 +56,21 @@ class LabellingNode:
         rospy.Subscriber("/panoptic6/labels_map", Image, self.IM_callback_6)
         rospy.Subscriber("/panoptic7/labels_map", Image, self.IM_callback_7)
         rospy.Subscriber("/panoptic8/labels_map", Image, self.IM_callback_8)
-
-
         self.pub = rospy.Publisher("/colored_points", PointCloud2, queue_size=10)
-        self.spin()
 
+    def start(self, directory):
+        self.directory = directory
+        try:
+            os.chdir(directory)
+            print("Current working directory: {0}".format(os.getcwd()))
+        except FileNotFoundError:
+            print("Directory: {0} does not exist".format(directory))
+        except NotADirectoryError:
+            print("{0} is not a directory".format(directory))
+        except PermissionError:
+            print("You do not have permissions to change to {0}".format(directory))
+
+        self.spin()
 
     def update_camera(self,camera_info):
         self.camera.fromCameraInfo(camera_info)
@@ -166,6 +178,7 @@ class LabellingNode:
         self.pc(raw_cloud, self.transform_link_7, self.last_image_7)
         self.pc(raw_cloud, self.transform_link_8, self.last_image_8)
 
+        self.write_cloud(self.pcl_colorized)
         pcp = pc2.create_cloud(self.header, self.fields, self.pcl_colorized)
         self.publish_pcl(pcp)
         
@@ -237,6 +250,21 @@ class LabellingNode:
            self.image_pub.publish(self.bridge.cv2_to_imgmsg(image, encoding="passthrough")) #"bgr8"))
         except CvBridgeError as error:
            print(error)
+
+    def write_cloud(self, cloud):
+        readcloud = pc2.read_points_list(cloud, skip_nans=True, field_names=("x", "y", "z", "intensity", "label"))
+        N = len(readcloud)
+        arr = np.zeros((N,4),dtype=np.float32)
+        label = np.zeros((N,1),dtype=np.float32)
+        for n, point in enumerate(readcloud):
+            arr[n,0] = point[0] #might be different xyz
+            arr[n,1] = point[1] #might be different xyz
+            arr[n,2] = point[2] #might be different xyz
+            arr[n,3] = point[3] # reflectivity
+            label[n] = point[4] #might be different xyz
+        arr.astype('float32').tofile(self.directory +  '/velodyne/' +  str(self.name_incrementer) + '.bin') # add location
+        label.astype('float32').tofile(self.directory + '/labels/' + str(self.name_incrementer) + '.label') # add location
+        self.name_incrementer += 1
 
     def spin(self):
         rospy.spin()
