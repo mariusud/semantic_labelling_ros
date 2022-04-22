@@ -18,7 +18,6 @@ def kill(proc_pid):
 def replace_object(file_name, line_num, object_name):
     lines = open(file_name, 'r').readlines()
     text = '\t \t \t \t \t \t \t \t \t<uri>obj_meshes/%s</uri>  \n' % object_name
-    print(text)
     lines[line_num] = text
     out = open(file_name, 'w')
     out.writelines(lines)

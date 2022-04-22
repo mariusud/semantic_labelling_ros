@@ -1,11 +1,8 @@
 #!/usr/bin/env python3.8
-from listener import LabellingNode
 import glob, os, time
 import subprocess
-import threading, multiprocessing
 import psutil
 import rospy
-import sys
 import re
 import random 
 def kill(proc_pid):
@@ -16,7 +13,7 @@ def kill(proc_pid):
 
 def replace_object(file_name, line_num, object_name):
     lines = open(file_name, 'r').readlines()
-    text = '\t \t \t \t \t \t \t \t \t<uri>chimneys/%s</uri>  \n' % object_name
+    text = '\t \t \t \t \t \t \t \t \t<uri>tanks/%s</uri>  \n' % object_name
     lines[line_num] = text
     out = open(file_name, 'w')
     out.writelines(lines)
@@ -37,15 +34,15 @@ def random_scaling(sequence_no):
     x,y: between 0.07 and 0.4
     '''
     if sequence_no < 20:
-        return (0.1,0.1,0.2)
+        return (0.1,0.1,0.1)
     elif sequence_no >= 20 and sequence_no < 40:
-        x = random.uniform(0.07,0.4)
-        z = random.uniform(0.07,0.4)
+        x = random.uniform(0.07,0.15)
+        z = random.uniform(0.07,0.15)
         return (x,x,z)
     elif sequence_no >= 40 and sequence_no < 60:
-        x = random.uniform(0.1,0.4)
-        y = random.uniform(0.1,0.4)
-        z = random.uniform(0.1,0.5)
+        x = random.uniform(0.1,0.2)
+        y = random.uniform(0.1,0.2)
+        z = random.uniform(0.1,0.2)
         return (x,y,z)
     else:
         return (0.1,0.1,0.2)
@@ -54,14 +51,14 @@ if __name__ == '__main__':
     sequence_incrementer = 0
     cwd = os.getcwd()
     #print(os.path.join(cwd, "/chimneys"))
-    os.chdir(cwd + '/chimneys')
+    os.chdir(cwd + '/tanks')
     files = glob.glob('*.STL')
     obs =  sorted(files, key=lambda x:float(re.findall("(\d+)",x)[0]))
     for obj in obs:
         #time.sleep(10) # cooldown pause between runs
         print("RUN number %d \n \n" %  sequence_incrementer)
         # Folder creations
-        sequence_path = cwd + '/chimney_dataset/' + str(sequence_incrementer)
+        sequence_path = cwd + '/tank_dataset/' + str(sequence_incrementer)
         sequence_ouster_path = os.path.join(sequence_path, 'velodyne')
         sequence_label_path = os.path.join(sequence_path, 'labels')
 
@@ -154,7 +151,7 @@ if __name__ == '__main__':
         time.sleep(10) # cooldown pause between runs
         print("RUN number %d \n \n" %  sequence_incrementer)
         # Folder creations
-        sequence_path = cwd + '/dataset/' + str(120 + sequence_incrementer)
+        sequence_path = cwd + '/tank_dataset/' + str(120 + sequence_incrementer)
         sequence_ouster_path = os.path.join(sequence_path, 'velodyne')
         sequence_label_path = os.path.join(sequence_path, 'labels')
 
