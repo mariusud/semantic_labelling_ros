@@ -25,8 +25,8 @@ import multiprocessing
 import time
 
 class LabellingNode():
-    def __init__(self, directory):
-        self.save_dataset = False
+    def __init__(self, directory, save_dataset=False):
+        self.save_dataset = save_dataset
         self.directory = directory
         self.node = rospy.init_node('labelling_node', anonymous=True,disable_signals=True)
         self.camera = PinholeCameraModel()
@@ -41,10 +41,6 @@ class LabellingNode():
 
         self._init_pcl()
         self.red = [0,0,255]
-
-        self.stairs_color = 50 # todo all colors
-        a = 50
-        #self.stairs_rgb = struct.unpack('I', struct.pack('BBBB', self.stairs_color, self.stairs_color, self.stairs_color, a))[0]
 
         camera_info = rospy.wait_for_message("/panoptic/camera_info", CameraInfo)
         self.update_camera_info(camera_info)
@@ -68,7 +64,7 @@ class LabellingNode():
         self.pan16cb = message_filters.Subscriber("/panoptic16/labels_map", Image)
 
         self.pub = rospy.Publisher("/colored_points", PointCloud2, queue_size=10)
-        cb = message_filters.ApproximateTimeSynchronizer([self.lidarcb, self.pan1cb,self.pan2cb,self.pan3cb,self.pan4cb,self.pan5cb,self.pan6cb,self.pan7cb,self.pan8cb, self.pan9cb,self.pan10cb,self.pan11cb,self.pan12cb,self.pan13cb,self.pan14cb, self.pan15cb,self.pan16cb], 1, 0.1, allow_headerless=True)
+        cb = message_filters.ApproximateTimeSynchronizer([self.lidarcb, self.pan1cb,self.pan2cb,self.pan3cb,self.pan4cb,self.pan5cb,self.pan6cb,self.pan7cb,self.pan8cb, self.pan9cb,self.pan10cb,self.pan11cb,self.pan12cb,self.pan13cb,self.pan14cb, self.pan15cb,self.pan16cb], 1, 0.01, allow_headerless=True)
         cb.registerCallback(self.pcl2points)
         try:
             os.chdir(directory)
@@ -88,17 +84,8 @@ class LabellingNode():
         self.height = camera_info.height # parse this from cam info
         print("Camera Updated\n",camera_info)
 
-    def IM_callback(self,data):
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
-            self.width, self.height, channels = cv_image.shape 
-            self.last_image = np.array(cv_image)
-        except CvBridgeError as error:
-            print(error)
-    
     def pcl2points(self, cloud, im1,im2,im3,im4,im5,im6,im7,im8, im9, im10, im11, im12, im13, im14, im15, im16):
         print("LISTENING")
-        start = time.time()
         raw_cloud = pc2.read_points_list(cloud,skip_nans=True,field_names=("x", "y", "z", "intensity"))
         self.raw_cloud = list(filter(lambda num: not math.isinf(num[0]), raw_cloud))
         try:
@@ -146,16 +133,16 @@ class LabellingNode():
             self.pcl_colorized = manager.list()
 
             processes = [
-                         multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_1, self.last_image)),
-                         multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_2, self.last_image_2)),
+                         #multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_1, self.last_image)),
+                         #multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_2, self.last_image_2)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_3, self.last_image_3)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_4, self.last_image_4)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_5, self.last_image_5)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_6, self.last_image_6)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_7, self.last_image_7)),
                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_8, self.last_image_8)),
-                         multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_9, self.last_image_9)),
-                          multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_10, self.last_image_10)),
+                         #multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_9, self.last_image_9)),
+                          #multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_10, self.last_image_10)),
                           multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_11, self.last_image_11)),
                           multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_12, self.last_image_12)),
                           multiprocessing.Process(target=self.pc, args=(self.raw_cloud, self.transform_link_13, self.last_image_13)),
@@ -174,13 +161,8 @@ class LabellingNode():
             if len(self.pcl_colorized) > 100 and self.save_dataset:
                 self.write_cloud(pcp)
             self.publish_pcl(pcp)
-            end = time.time()
-            print(end - start)
-
-
 
     def pc(self, cloud, transform, image, overlay=False): #separate thread?
-        start = time.time()
         for p in cloud:
             transformed_p = tf2_kdl.transform_to_kdl(transform) * PyKDL.Vector(p[0], p[1], p[2]) # transform point based on tf transform
             if transformed_p[0] > 0:
@@ -192,16 +174,14 @@ class LabellingNode():
                             if h < self.height:
                                 if image[w,h][2] != 0:
                                     self.pcl_colorized.append(list(p) + [image[w,h][0]] + [image[w,h][2]])
-                                #if overlay:
-                                #    image[w,h] = self.red
+                                if overlay:
+                                    image[w,h] = self.red
                 except:
                     pass
-        #if overlay:
-        #   cv2.imshow("Image window", image)
-        #   cv2.imwrite("result.png",image)
-        #   cv2.waitKey(1)
-        end = time.time()
-        #print("time  ",start-end )
+        if overlay:
+           cv2.imshow("Image window", image)
+           cv2.imwrite("result.png",image)
+           #cv2.waitKey(1)
 
     def publish_pcl(self,pcp):
             pcp.header.stamp = rospy.Time.now()
@@ -265,17 +245,18 @@ class LabellingNode():
         self.name_incrementer += 1
 
     def shutdown(self):
-        del self.node
-        del self.tfBuffer
-        del self.lidarcb
-        del self.pan1cb
-        del self.pan2cb
-        del self.pan3cb
-        del self.pan4cb
-        del self.pan5cb
-        del self.pan6cb
-        del self.pan7cb
-        del self.pan8cb
+        pass
+        # del self.node
+        # del self.tfBuffer
+        # del self.lidarcb
+        # del self.pan1cb
+        # del self.pan2cb
+        # del self.pan3cb
+        # del self.pan4cb
+        # del self.pan5cb
+        # del self.pan6cb
+        # del self.pan7cb
+        # del self.pan8cb
 
 if __name__ == '__main__':
-    LabellingNode(rospy.get_param('directory_param'))
+    LabellingNode(rospy.get_param('directory_param'), save_dataset=True)
